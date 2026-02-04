@@ -187,7 +187,7 @@ if (process.env.TELEGRAM_BOT_TOKEN) {
     config.channels.telegram = config.channels.telegram || {};
     config.channels.telegram.botToken = process.env.TELEGRAM_BOT_TOKEN;
     config.channels.telegram.enabled = true;
-    config.channels.telegram.dm = config.channels.telegram.dm || {};
+    // config.channels.telegram.dm is no longer valid in new version
     config.channels.telegram.dmPolicy = process.env.TELEGRAM_DM_POLICY || 'pairing';
 }
 
@@ -212,8 +212,22 @@ if (process.env.SLACK_BOT_TOKEN && process.env.SLACK_APP_TOKEN) {
 // Usage: Set AI_GATEWAY_BASE_URL or ANTHROPIC_BASE_URL to your endpoint like:
 //   https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway_id}/anthropic
 //   https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway_id}/openai
-const baseUrl = process.env.AI_GATEWAY_BASE_URL || process.env.ANTHROPIC_BASE_URL || '';
-const isOpenAI = baseUrl.endsWith('/openai');
+let baseUrl = process.env.AI_GATEWAY_BASE_URL || process.env.ANTHROPIC_BASE_URL || '';
+const hasOpenAIKey = !!process.env.OPENAI_API_KEY;
+const hasAnthropicKey = !!process.env.ANTHROPIC_API_KEY;
+
+// Auto-detect OpenAI if explicitly specified or if heuristics suggest it
+let isOpenAI = baseUrl.endsWith('/openai');
+
+if (!isOpenAI && baseUrl && hasOpenAIKey && !hasAnthropicKey) {
+    console.log('Detected OpenAI key with custom Base URL. Switching to OpenAI mode.');
+    isOpenAI = true;
+    // Auto-fix URL if missing suffix
+    if (!baseUrl.endsWith('/openai')) {
+         baseUrl = baseUrl.replace(/\/+$/, '') + '/openai';
+         console.log('Auto-appended /openai to base URL:', baseUrl);
+    }
+}
 
 if (isOpenAI) {
     // Create custom openai provider config with baseUrl override
